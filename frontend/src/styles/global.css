@@ -1,0 +1,11 @@
+/* Global base styles (works with Tailwind CDN classes) */
+:root { color-scheme: light; }
+html, body, #root { height: 100%; }
+/* Typography tweaks */
+h1, h2, h3, h4 { letter-spacing: -0.02em; color: #0f172a; }
+a { color: #2563eb; }
+a:hover { color: #1d4ed8; }
+/* Utilities */
+.container { max-width: 72rem; margin-inline: auto; padding-inline: 1rem; }
+.card-hover { transition: transform 200ms; }
+.card-hover:hover { transform: translateY(-2px); }
