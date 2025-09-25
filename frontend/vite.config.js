@@ -7,7 +7,8 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     base: '/',
     define: {
-      'process.env.VITE_API_BASE': JSON.stringify(env.VITE_API_BASE)
-    }
+      'import.meta.env.VITE_API_BASE': JSON.stringify(env.VITE_API_BASE || 'http://localhost:8000')
+    },
+    envPrefix: 'VITE_'
   };
 });

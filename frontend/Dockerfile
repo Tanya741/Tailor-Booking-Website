@@ -1,4 +1,4 @@
-FROM node:20-bullseye
+FROM node:20-bullseye as builder
 
 WORKDIR /app
 
@@ -13,7 +13,13 @@ RUN npm install --legacy-peer-deps \
 # Copy the rest of the source
 COPY . .
 
+# Create a .env file with the build-time environment variable
+ARG VITE_API_BASE
+ENV VITE_API_BASE=${VITE_API_BASE:-https://tailor-booking-website.onrender.com}
+
 # Expose Vite dev server port
 EXPOSE 5173
 
-CMD ["npm", "run", "dev"]
+# Use an environment variable to determine whether to run dev or build
+ENV NODE_ENV=development
+CMD ["npm", "run", "dev", "--", "--host"]
