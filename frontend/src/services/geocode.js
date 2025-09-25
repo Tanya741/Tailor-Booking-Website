@@ -1,7 +1,8 @@
 // Simple geocoding using OpenStreetMap Nominatim (for development/testing).
 // NOTE: Nominatim has usage policies; for production, consider Google Maps, Mapbox, etc.
 
-const NOMINATIM = 'https://nominatim.openstreetmap.org/search';
+const NOMINATIM_SEARCH = 'https://nominatim.openstreetmap.org/search';
+const NOMINATIM_REVERSE = 'https://nominatim.openstreetmap.org/reverse';
 
 function buildQueryVariants(q) {
   const original = q.trim();
@@ -49,7 +50,7 @@ export async function geocodeAddress(query) {
       countrycodes: 'in',
       addressdetails: '0',
     });
-    const res = await fetch(`${NOMINATIM}?${params.toString()}`, {
+    const res = await fetch(`${NOMINATIM_SEARCH}?${params.toString()}`, {
       headers: { Accept: 'application/json' },
     });
     if (!res.ok) continue;
@@ -64,4 +65,23 @@ export async function geocodeAddress(query) {
     }
   }
   return null;
+}
+
+export async function reverseGeocode(lat, lng) {
+  if (lat == null || lng == null) return null;
+  const params = new URLSearchParams({
+    lat: String(lat),
+    lon: String(lng),
+    format: 'json',
+    addressdetails: '1',
+    zoom: '14',
+  });
+  const res = await fetch(`${NOMINATIM_REVERSE}?${params.toString()}`, {
+    headers: { Accept: 'application/json' },
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  if (!data) return null;
+  const name = data.display_name || null;
+  return name ? { lat: Number(lat), lng: Number(lng), name } : null;
 }

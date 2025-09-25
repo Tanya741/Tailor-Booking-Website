@@ -1,0 +1,55 @@
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: tailor_it
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    environment:
+      - DEBUG=False
+      - SECRET_KEY=your-production-secret-key
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/tailor_it
+      - ALLOWED_HOSTS=localhost,127.0.0.1
+      - CORS_ALLOWED_ORIGINS=http://localhost:8000
+      - CSRF_TRUSTED_ORIGINS=http://localhost:8000
+      - DB_HOST=db
+      - DB_PORT=5432
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./staticfiles:/app/staticfiles
+      - ./media:/app/media
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend    # ✅ correct
+      dockerfile: Dockerfile # ✅ optional but explicit
+    ports:
+      - "3000:5173"          # ✅ map host 3000 → container 5173
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    depends_on:
+      - web
+    command: npm run dev -- --host 0.0.0.0
+
+volumes:
+  postgres_data:

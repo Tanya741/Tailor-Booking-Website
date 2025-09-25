@@ -1,7 +1,6 @@
 from rest_framework import permissions, generics, viewsets
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError, PermissionDenied
-from rest_framework.exceptions import PermissionDenied
 from django.contrib.auth import get_user_model
 from django.db import connection
 from django.db.models import F, Value, Q
@@ -56,6 +55,9 @@ class TailorDetailView(generics.RetrieveAPIView):
 		username = self.kwargs.get('username')
 		return generics.get_object_or_404(self.queryset, user__username=username)
 
+	# Note: This endpoint is used by the frontend public TailorProfilePage at
+	# /tailor/:username to display a tailor's profile.
+
 
 class MyServicesView(generics.ListCreateAPIView):
 	permission_classes = [permissions.IsAuthenticated]
@@ -93,6 +95,9 @@ class ServiceDetailUpdateView(generics.RetrieveUpdateDestroyAPIView):
 			return ServiceCreateUpdateSerializer
 		return ServiceSerializer
 
+	# Note: This view also supports DELETE requests to remove a service:
+	# DELETE /api/marketplace/me/services/<service_id>/ → 204 No Content
+
 
 class PublicTailorServicesView(generics.ListAPIView):
 	serializer_class = ServiceSerializer
@@ -108,11 +113,25 @@ class BookingListCreateView(generics.ListCreateAPIView):
 	permission_classes = [permissions.IsAuthenticated]
 
 	def get_queryset(self):
+		# Return bookings for the current authenticated user.
+		# - If user is a customer: bookings they made (customer=user)
+		# - If user is a tailor: bookings they received (tailor=user)
+		from .models import Booking
 		user = self.request.user
 		if user.role == 'customer':
-			return Service.objects.none().model.booking_set.model.objects.filter(customer=user).select_related('service', 'service__tailor__user', 'tailor').order_by('-created_at')
-		else:
-			return Service.objects.none().model.booking_set.model.objects.filter(tailor=user).select_related('service', 'service__tailor__user', 'customer').order_by('-created_at')
+			return (
+				Booking.objects
+				.filter(customer=user)
+				.select_related('service', 'service__tailor__user', 'tailor')
+				.order_by('-created_at')
+			)
+		# Treat non-customers as tailors for this endpoint
+		return (
+			Booking.objects
+			.filter(tailor=user)
+			.select_related('service', 'service__tailor__user', 'customer')
+			.order_by('-created_at')
+		)
 
 	def get_serializer_class(self):
 		if self.request.method == 'POST':
@@ -180,8 +199,6 @@ class PublicTailorReviewsView(generics.ListAPIView):
 
 	def get_queryset(self):
 		username = self.kwargs.get('username')
-		from django.contrib.auth import get_user_model
-		User = get_user_model()
 		tailor = generics.get_object_or_404(User, username=username, role='tailor')
 		return tailor.reviews_received.select_related('customer', 'booking').order_by('-created_at')
 
@@ -199,6 +216,13 @@ class TailorSearchViewSet(viewsets.ReadOnlyModelViewSet):
 
 	serializer_class = TailorProfileSerializer
 	permission_classes = [permissions.AllowAny]
+
+	def get_serializer_context(self):
+		ctx = super().get_serializer_context()
+		spec = self.request.query_params.get('specialization')
+		if spec:
+			ctx['specialization'] = spec
+		return ctx
 
 	def get_queryset(self):
 		qs = (TailorProfile.objects
@@ -237,7 +261,11 @@ class TailorSearchViewSet(viewsets.ReadOnlyModelViewSet):
 			# Exclude rows without coordinates
 			qs = qs.exclude(user__latitude__isnull=True).exclude(user__longitude__isnull=True)
 
-			# Optional bounding box pre-filter for performance
+			# Default radius is 10km if not supplied
+			if radius_km is None or radius_km <= 0:
+				radius_km = 10.0
+
+			# Bounding box pre-filter for performance
 			if radius_km and radius_km > 0:
 				from math import cos, radians
 				lat_delta = radius_km / 111.32

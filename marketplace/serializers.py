@@ -18,13 +18,49 @@ class TailorProfileSerializer(serializers.ModelSerializer):
     specializations = SpecializationSerializer(many=True, read_only=True)
     # Optional distance in kilometers, populated by search endpoint when available
     distance_km = serializers.FloatField(read_only=True, required=False)
+    # Service that matches the requested specialization (if provided in context)
+    matched_service = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = TailorProfile
         fields = [
-            'user_id', 'username', 'bio', 'years_experience', 'avg_rating', 'total_reviews', 'specializations', 'distance_km'
+            'user_id', 'username', 'bio', 'years_experience', 'avg_rating', 'total_reviews', 'specializations', 'distance_km', 'matched_service'
         ]
         read_only_fields = ['avg_rating', 'total_reviews']
+
+    def get_matched_service(self, obj: TailorProfile):
+        spec_slug = (self.context or {}).get('specialization')
+        if not spec_slug:
+            return None
+        # Find specialization label to match against service names
+        try:
+            spec = obj.specializations.filter(slug__iexact=spec_slug).first()
+        except Exception:
+            spec = None
+        label = spec.name if spec else None
+        # Fallback: use slug words as keywords
+        keywords = []
+        if label:
+            keywords = [label]
+        else:
+            keywords = [spec_slug.replace('-', ' '), spec_slug]
+
+        qs = obj.services.filter(is_active=True)
+        # Prefer exact/icontains name matches
+        from django.db.models import Q
+        q = Q()
+        for kw in keywords:
+            q |= Q(name__iexact=kw) | Q(name__icontains=kw)
+        svc = qs.filter(q).order_by('name').first()
+        if not svc:
+            return None
+        return {
+            'id': svc.id,
+            'name': svc.name,
+            'price': str(svc.price),
+            'duration_minutes': svc.duration_minutes,
+            'is_active': svc.is_active,
+        }
 
 
 class TailorProfileUpdateSerializer(serializers.ModelSerializer):

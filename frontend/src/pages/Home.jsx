@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SPECIALIZATIONS } from '../constants/specializations';
 import useGeolocation from '../hooks/useGeolocation';
-import { geocodeAddress } from '../services/geocode';
+import { geocodeAddress, reverseGeocode } from '../services/geocode';
 
 export default function Home() {
   const navigate = useNavigate();
@@ -13,6 +13,21 @@ export default function Home() {
 
   const [geoTextError, setGeoTextError] = useState('');
   const [textGeoLoading, setTextGeoLoading] = useState(false);
+
+  // Auto-fill location with a human-friendly address from coords when no typed address
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!location && coords?.latitude && coords?.longitude) {
+        const rev = await reverseGeocode(coords.latitude, coords.longitude);
+        if (!cancelled && rev?.name) {
+          // Only set if user hasn't started typing a value
+          setLocation((prev) => (prev ? prev : rev.name));
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [location, coords?.latitude, coords?.longitude]);
 
   const onSearch = async (e) => {
     e.preventDefault();
@@ -28,12 +43,13 @@ export default function Home() {
         setTextGeoLoading(true);
         const g = await geocodeAddress(location);
         if (g) latLng = g;
-        else setGeoTextError('Could not find that address');
+        else setGeoTextError('This address is not serviceable.');
       } catch (err) {
-        setGeoTextError('Geocoding failed');
+        setGeoTextError('This address is not serviceable.');
       } finally {
         setTextGeoLoading(false);
       }
+      if (!latLng) return; // stop if typed address could not be geocoded
     } else if (coords?.latitude && coords?.longitude) {
       // Fallback to device coordinates when no typed address
       latLng = { lat: coords.latitude, lng: coords.longitude };
@@ -75,7 +91,7 @@ export default function Home() {
             <div className="bg-white rounded-2xl p-3 shadow-lg w-full max-w-6xl mx-auto flex flex-col gap-3 sm:flex-row sm:items-center">
               <input
                 className="flex-1 w-full px-4 py-3 rounded-xl border outline-none text-neutral"
-                placeholder={coords ? `Lat: ${coords.latitude.toFixed(5)}, Lng: ${coords.longitude.toFixed(5)}` : 'Your location'}
+                placeholder={'Your address'}
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
               />

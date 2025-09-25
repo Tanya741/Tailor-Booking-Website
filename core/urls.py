@@ -18,6 +18,7 @@ from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import SimpleRouter
 from marketplace.views import TailorSearchViewSet
+from core.views import FrontendAppView
 
 router = SimpleRouter()
 router.register(r'tailors', TailorSearchViewSet, basename='tailor-search')
@@ -28,4 +29,5 @@ urlpatterns = [
     path('api/marketplace/', include('marketplace.urls')),
     # Frontend expects /api/tailors/
     path('api/', include(router.urls)),
+    path('', FrontendAppView.as_view(), name='home'),
 ]

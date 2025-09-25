@@ -101,11 +101,11 @@ class CombinedAuthView(APIView):
 		refresh = tokens.get('refresh')
 		profile_data = None
 		if user.role == 'tailor':
-			# TailorProfile might be auto-created by signal; guard existence
-			tp = getattr(user, 'tailor_profile', None)
-			if tp:
-				from marketplace.serializers import TailorProfileSerializer
-				profile_data = TailorProfileSerializer(tp).data
+			# Ensure a TailorProfile exists (covers legacy users and JWT login without session signals)
+			from marketplace.models import TailorProfile
+			tp, _ = TailorProfile.objects.get_or_create(user=user)
+			from marketplace.serializers import TailorProfileSerializer
+			profile_data = TailorProfileSerializer(tp).data
 		return Response({
 			'user': UserSerializer(user).data,
 			'access': access,
