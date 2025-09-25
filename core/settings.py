@@ -47,6 +47,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -155,12 +156,15 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
 }
 
-# CORS (development: allow localhost frontends). Tighten before production.
-# CORS_ALLOW_ALL_ORIGINS = True  # For rapid frontend dev; replace with CORS_ALLOWED_ORIGINS later
-# Example (future):
+# CORS and CSRF settings
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',  # Vite
     'http://localhost:3000',  # CRA/Alt
-    'http://localhost:3000'
+    'https://tailor-booking-website.onrender.com',
+    'http://tailor-booking-website.onrender.com'
+]
 
+CSRF_TRUSTED_ORIGINS = [
+    'https://tailor-booking-website.onrender.com',
+    'http://tailor-booking-website.onrender.com'
 ]   
