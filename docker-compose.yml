@@ -38,19 +38,15 @@ services:
 
   frontend:
     build:
-      context: ./frontend    # ✅ correct
-      dockerfile: Dockerfile # ✅ optional but explicit
+      context: ./frontend
+      dockerfile: Dockerfile.prod
     ports:
-      - "3000:5173"          # ✅ map host 3000 → container 5173
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      - "3000:80"
     environment:
-      - CHOKIDAR_USEPOLLING=true
+      - NODE_ENV=production
       - VITE_API_BASE=https://tailor-booking-website.onrender.com
     depends_on:
       - web
-    command: npm run dev -- --host 0.0.0.0
 
 volumes:
   postgres_data:
