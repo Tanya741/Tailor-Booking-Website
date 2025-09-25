@@ -161,7 +161,7 @@ CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',  # Vite
     'http://localhost:3000',  # CRA/Alt
     'https://tailor-booking-website.onrender.com',
-    'http://tailor-booking-website.onrender.com'
+    'https://tailor-booking-website-frontend.onrender.com',
 ]
 
 CSRF_TRUSTED_ORIGINS = [
