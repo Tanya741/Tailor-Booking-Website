@@ -1,5 +1,4 @@
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
-console.log('API_BASE:', API_BASE); // Debug log
 const STORAGE_KEYS = {
   access: 'tailorit_access',
   refresh: 'tailorit_refresh',
@@ -71,7 +70,23 @@ class ApiClient {
       headers: this.headers,
       body: JSON.stringify({ action: 'register', ...data })
     });
-    if (!res.ok) throw new Error('Register failed');
+    if (!res.ok) {
+      // Parse the error response from the backend
+      let errorData;
+      try {
+        errorData = await res.json();
+      } catch (e) {
+        errorData = { detail: 'Network error or invalid response' };
+      }
+      
+      // Create an error that includes the response data
+      const error = new Error('Register failed');
+      error.response = {
+        status: res.status,
+        data: errorData
+      };
+      throw error;
+    }
     const json = await res.json();
     if (json?.access || json?.refresh) {
       this.saveTokens(json.access, json.refresh);
@@ -86,7 +101,23 @@ class ApiClient {
       headers: this.headers,
       body: JSON.stringify({ action: 'login', ...data })
     });
-    if (!res.ok) throw new Error('Login failed');
+    if (!res.ok) {
+      // Parse the error response from the backend
+      let errorData;
+      try {
+        errorData = await res.json();
+      } catch (e) {
+        errorData = { detail: 'Network error or invalid response' };
+      }
+      
+      // Create an error that includes the response data
+      const error = new Error('Login failed');
+      error.response = {
+        status: res.status,
+        data: errorData
+      };
+      throw error;
+    }
     const json = await res.json();
     this.saveTokens(json.access, json.refresh);
     if (json?.user) this.saveUser(json.user);
@@ -107,9 +138,14 @@ class ApiClient {
     return json;
   }
   async request(path, init = {}) {
+    // For FormData uploads, don't include Content-Type header
+    const headers = init.isFormData 
+      ? { 'Authorization': this.headers.Authorization, ...(init.headers || {}) }
+      : { ...this.headers, ...(init.headers || {}) };
+    
     const res = await fetch(`${API_BASE}${path}`, {
       ...init,
-      headers: { ...this.headers, ...(init.headers || {}) },
+      headers,
     });
     if (res.status === 401 && this.refreshToken) {
       try {
@@ -120,7 +156,23 @@ class ApiClient {
       }
     }
     if (!res.ok) throw new Error(`Request failed: ${res.status}`);
-    return res.json();
+    
+    // Handle empty responses (like DELETE requests that return 204 No Content)
+    const contentType = res.headers.get('content-type');
+    if (res.status === 204 || !contentType || !contentType.includes('application/json')) {
+      return null;
+    }
+    
+    // Check if response body is empty
+    const text = await res.text();
+    if (!text) return null;
+    
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      console.warn('Failed to parse response as JSON:', text);
+      return null;
+    }
   }
 
   async getTailors(filters = {}) {
@@ -138,6 +190,34 @@ class ApiClient {
     return this.request('/api/marketplace/bookings/');
   }
 
+  async updateBookingStatus(bookingId, status) {
+    return this.request(`/api/marketplace/bookings/${bookingId}/status/`, {
+      method: 'POST',
+      body: JSON.stringify({ status: status.toLowerCase() })
+    });
+  }
+
+  async initiatePayment(bookingId) {
+    const response = await this.request(`/api/marketplace/bookings/${bookingId}/payment/`, {
+      method: 'POST'
+    });
+    return response;
+  }
+
+  async markPaymentComplete(bookingId, sessionId) {
+    return this.request(`/api/marketplace/bookings/${bookingId}/mark-paid/`, {
+      method: 'POST',
+      body: JSON.stringify({ session_id: sessionId })
+    });
+  }
+
+  async createBooking(data) {
+    return this.request('/api/marketplace/bookings/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
   async getMyTailorProfile() {
     return this.request('/api/marketplace/me/');
   }
@@ -153,12 +233,14 @@ class ApiClient {
   async createMyService(data) {
     return this.request('/api/marketplace/me/services/', {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
   }
   async updateMyService(id, data) {
     return this.request(`/api/marketplace/me/services/${id}/`, {
       method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
   }
@@ -184,6 +266,96 @@ class ApiClient {
     // Persist updated user locally
     if (json) this.saveUser(json);
     return json;
+  }
+
+  // --- Reviews ---
+  async getMyReviews() {
+    return this.request('/api/marketplace/reviews/');
+  }
+
+  async createReview(bookingId, rating, comment) {
+    return this.request('/api/marketplace/reviews/', {
+      method: 'POST',
+      body: JSON.stringify({
+        booking: bookingId,
+        rating: rating,
+        comment: comment || ''
+      })
+    });
+  }
+
+  async getTailorReviews(username) {
+    return this.request(`/api/marketplace/${username}/reviews/`);
+  }
+
+  // --- Image Upload Methods ---
+  async uploadTailorProfileImage(imageFile) {
+    const formData = new FormData();
+    formData.append('profile_image', imageFile);
+    
+    return this.request('/api/marketplace/me/', {
+      method: 'PATCH',
+      body: formData,
+      // For FormData, don't set Content-Type - let browser handle it
+      isFormData: true
+    });
+  }
+
+  async removeTailorProfileImage() {
+    return this.request('/api/marketplace/me/', {
+      method: 'PATCH',
+      body: JSON.stringify({ profile_image: null })
+    });
+  }
+
+  // --- Service Image Methods ---
+  async getServiceImages(serviceId) {
+    return this.request(`/api/marketplace/me/services/${serviceId}/images/`);
+  }
+
+  async uploadServiceImage(serviceId, imageFile, order = 0) {
+    const formData = new FormData();
+    formData.append('image', imageFile);
+    formData.append('order', order.toString());
+    
+    return this.request(`/api/marketplace/me/services/${serviceId}/images/`, {
+      method: 'POST',
+      body: formData,
+      isFormData: true
+    });
+  }
+
+  async updateServiceImage(serviceId, imageId, data) {
+    return this.request(`/api/marketplace/me/services/${serviceId}/images/${imageId}/`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+  }
+
+  async deleteServiceImage(serviceId, imageId) {
+    return this.request(`/api/marketplace/me/services/${serviceId}/images/${imageId}/`, {
+      method: 'DELETE'
+    });
+  }
+
+  // --- Review Image Methods ---
+  async uploadReviewImage(reviewId, imageFile) {
+    const formData = new FormData();
+    formData.append('image', imageFile);
+    formData.append('review', reviewId);
+    
+    return this.request('/api/marketplace/reviews/images/', {
+      method: 'POST',
+      body: formData,
+      isFormData: true
+    });
+  }
+
+  async deleteReviewImage(reviewId, imageId) {
+    return this.request(`/api/marketplace/reviews/${reviewId}/images/${imageId}/`, {
+      method: 'DELETE'
+    });
   }
 
   // --- Session lifecycle helpers ---

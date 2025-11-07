@@ -1,5 +1,6 @@
 import React from 'react';
 import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import AuthPage from './AuthPage.jsx';
 import TailorsList from './TailorsList.jsx';
 import ServicesPage from './ServicesPage.jsx';
@@ -12,6 +13,8 @@ import { AuthProvider, useAuth } from '../context/AuthContext.jsx';
 import apiClient from '../services/apiClient';
 import Profile from './Profile.jsx';
 import TailorProfilePage from './TailorProfilePage.jsx';
+import PaymentSuccess from './PaymentSuccess.jsx';
+import PaymentCancel from './PaymentCancel.jsx';
 
 // Removed legacy placeholders (BookingHistory, ProfileEdit)
 
@@ -46,6 +49,7 @@ export default function App() {
   return (
     <AuthProvider>
       <div className="min-h-screen flex flex-col">
+        <Toaster position="bottom-center" />
         <NavBar onOpenProfileDrawer={drawerApi.open} />
         <main className="flex-1">
           <Routes>
@@ -54,6 +58,8 @@ export default function App() {
             <Route path="/tailors" element={<TailorsList />} />
             <Route path="/services" element={<ServicesPage />} />
             <Route path="/bookings" element={<BookingsPage />} />
+            <Route path="/bookings/success" element={<PaymentSuccess />} />
+            <Route path="/bookings/cancel" element={<PaymentCancel />} />
             <Route path="/tailor/:username" element={<TailorProfilePage />} />
             {/* Profile is now shown in a drawer; no direct route */}
           </Routes>

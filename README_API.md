@@ -74,7 +74,7 @@ Authorization: Bearer <ACCESS>
   "name": "Jacket Alteration",
   "description": "Shorten sleeves",
   "price": "750.00",
-  "duration_minutes": 60,
+  "duration_days": 1,
   "is_active": true
 }
 

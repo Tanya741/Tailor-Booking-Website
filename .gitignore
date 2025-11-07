@@ -28,6 +28,9 @@ ENV/
 *.env.*
 !frontend/.env.example
 !.env.example
+.env.local
+.env.production
+.env.development
 
 # Django: local DBs
 *.sqlite3
@@ -81,3 +84,66 @@ pnpm-debug.log*
 
 # Docker (keep Dockerfile/compose)
 **/.dockerignore
+
+# Deployment and Security
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+.secrets/
+secrets/
+
+# Database backups and dumps
+*.sql
+*.dump
+db_backup/
+
+# Production builds and artifacts
+frontend/build/
+frontend/.next/
+*.tgz
+*.tar.gz
+
+# IDE and editor specific
+.vscode/settings.json
+.vscode/launch.json
+*.swp
+*.swo
+*~
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+
+# OS specific
+.DS_Store?
+ehthumbs.db
+Icon?
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Optional npm cache directory
+.npm
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# Individual documentation files (consolidated into main README.md)
+DOCKER_SETUP_GUIDE.md
+deployment-guide.md
+frontend-docker-guide.md
+README_API.md
+REVIEW_SYSTEM_SUMMARY.md
+STRIPE_TEST_GUIDE.md

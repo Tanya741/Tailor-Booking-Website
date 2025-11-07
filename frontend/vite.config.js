@@ -5,7 +5,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const apiBase = mode === 'production' 
     ? 'https://tailor-booking-website.onrender.com'
-    : (env.VITE_API_BASE || 'http://localhost:8000');
+    : (env.VITE_API_BASE || 'http://127.0.0.1:8000');
   
   console.log('Mode:', mode);
   console.log('API Base URL:', apiBase);

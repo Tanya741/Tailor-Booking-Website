@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import Card from '../components/Card.jsx';
 import Button from '../components/Button.jsx';
 import RatingStars from '../components/RatingStars.jsx';
+import BookingModal from '../components/BookingModal.jsx';
 import { SPECIALIZATIONS, getSpecializationLabel } from '../constants/specializations';
 import apiClient from '../services/apiClient';
 import useGeolocation from '../hooks/useGeolocation';
@@ -21,6 +22,7 @@ export default function TailorsList() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [bookingModalData, setBookingModalData] = useState(null);
 
   // Local search form state (prefilled from URL)
   const [location, setLocation] = useState(activeLocation);
@@ -66,7 +68,9 @@ export default function TailorsList() {
       navigate(`/auth?mode=register&next=${encodeURIComponent(next)}`);
       return;
     }
-    // TODO: open a booking flow
+    // Show booking modal - it can handle both with/without pre-selected service
+    const matchedService = tailor.matched_service;
+    setBookingModalData({ tailor, service: matchedService });
   };
 
   useEffect(() => {
@@ -211,13 +215,14 @@ export default function TailorsList() {
             {items.map((t) => {
               // Map API fields to UI
               const name = t.username || t.name || 'Tailor';
-              const rating = typeof t.avg_rating === 'number' ? t.avg_rating : (t.rating ?? 0);
+              // Parse avg_rating from string to number, fallback to rating field, then 0
+              const rating = t.avg_rating ? parseFloat(t.avg_rating) : (t.rating ?? 0);
               const reviews = t.total_reviews ?? t.reviews ?? 0;
               const specialties = Array.isArray(t.specializations)
                 ? t.specializations.map((s) => s.name).join(', ')
                 : (t.specialty || '');
               const distance = typeof t.distance_km === 'number' ? t.distance_km : null;
-              const matched = t.matched_service || null; // { id, name, price, duration_minutes }
+              const matched = t.matched_service || null; // { id, name, price, duration_days }
               const searchedSpecLabel = activeSpec ? getSpecializationLabel(activeSpec) : '';
               // Simple initials avatar since we don't have a photo field
               const initials = (name || '').trim().slice(0, 2).toUpperCase();
@@ -231,11 +236,21 @@ export default function TailorsList() {
                   onKeyDown={(e) => e.key === 'Enter' && handleCardClick(t)}
                 >
                   <Card className="h-full flex flex-col overflow-hidden transition-all ring-1 ring-accent/20 hover:ring-accent/70 hover:shadow-xl hover:-translate-y-0.5">
-                    <div className="relative aspect-video bg-gray-100 grid place-items-center text-gray-400">
-                      {/* Cover area; show avatar badge */}
-                      <div className="absolute bottom-2 left-2 h-12 w-12 rounded-full bg-white ring-1 ring-gray-200 overflow-hidden grid place-items-center">
-                        <span className="text-sm font-semibold text-gray-700">{initials}</span>
-                      </div>
+                    <div className="relative aspect-video bg-gray-100 flex items-center justify-center overflow-hidden">
+                      {/* Cover area with profile image or initials */}
+                      {t.profile_image ? (
+                        <img 
+                          src={t.profile_image} 
+                          alt={`${name} profile`}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center w-full h-full bg-gradient-to-br from-gray-100 to-gray-200">
+                          <span className="text-4xl font-bold text-gray-400">{initials}</span>
+                        </div>
+                      )}
+                      
+                                  
                       {distance != null && (
                         <span className="absolute top-2 right-2 text-xs px-2 py-1 rounded-full bg-accent text-primary shadow">
                           {distance.toFixed(1)} km
@@ -254,11 +269,11 @@ export default function TailorsList() {
                         <div className="text-sm text-gray-700 space-y-0.5">
                           <div className="font-medium">{searchedSpecLabel}</div>
                           <div>₹{matched?.price ?? 'N/A'}</div>
-                          <div>{matched?.duration_minutes != null ? `${matched.duration_minutes} min` : 'N/A'}</div>
+                          <div>{matched?.duration_days != null ? `${matched.duration_days} days` : 'N/A'}</div>
                         </div>
                       )}
                       <div className="flex items-center gap-2">
-                        <RatingStars value={Math.round(rating)} />
+                        <RatingStars value={rating} />
                         <span className="text-sm text-gray-500">{rating?.toFixed ? rating.toFixed(1) : rating} • {reviews} reviews</span>
                       </div>
                       <div className="pt-2 mt-auto">
@@ -274,6 +289,19 @@ export default function TailorsList() {
           </div>
         )}
       </div>
+
+      {/* Booking Modal */}
+      {bookingModalData && (
+        <BookingModal
+          tailor={bookingModalData.tailor}
+          service={bookingModalData.service}
+          onClose={() => setBookingModalData(null)}
+          onSuccess={(booking) => {
+            setBookingModalData(null);
+            navigate('/bookings');
+          }}
+        />
+      )}
     </section>
   );
 }

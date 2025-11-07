@@ -16,6 +16,8 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
 from rest_framework.routers import SimpleRouter
 from marketplace.views import TailorSearchViewSet
 from core.views import FrontendAppView
@@ -31,3 +33,7 @@ urlpatterns = [
     path('api/', include(router.urls)),
     path('', FrontendAppView.as_view(), name='home'),
 ]
+
+# Serve media files (for both development and production)
+# In production, you might want to use a CDN or dedicated media server
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

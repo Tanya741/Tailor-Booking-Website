@@ -34,6 +34,9 @@ RUN mkdir -p /app/staticfiles
 RUN cp /app/frontend/dist/index.html /app/staticfiles/
 RUN cp -r /app/frontend/dist/assets /app/staticfiles/
 
+# Create media directory for image uploads
+RUN mkdir -p /app/media
+
 # Copy entrypoint script
 COPY docker/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh

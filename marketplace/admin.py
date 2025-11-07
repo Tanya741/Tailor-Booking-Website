@@ -17,14 +17,14 @@ class TailorProfileAdmin(admin.ModelAdmin):
 
 @admin.register(Service)
 class ServiceAdmin(admin.ModelAdmin):
-	list_display = ("name", "tailor", "price", "duration_minutes", "is_active")
+	list_display = ("name", "tailor", "price", "duration_days", "is_active")
 	list_filter = ("is_active",)
 	search_fields = ("name", "tailor__user__username")
 
 
 @admin.register(Booking)
 class BookingAdmin(admin.ModelAdmin):
-	list_display = ("id", "customer", "tailor", "service", "status", "scheduled_time", "payment_status")
+	list_display = ("id", "customer", "tailor", "service", "status", "pickup_date", "delivery_date", "payment_status")
 	list_filter = ("status", "payment_status")
 	search_fields = ("customer__username", "tailor__username")
 

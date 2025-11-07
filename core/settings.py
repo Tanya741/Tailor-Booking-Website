@@ -132,6 +132,19 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
+# Media files (uploads)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# Ensure media directory exists
+os.makedirs(MEDIA_ROOT, exist_ok=True)
+
+# Image upload settings
+MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB
+ALLOWED_IMAGE_FORMATS = ['JPEG', 'PNG', 'WEBP']
+MAX_SERVICE_IMAGES = 10
+MAX_REVIEW_IMAGES = 5
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
@@ -158,13 +171,24 @@ SIMPLE_JWT = {
 
 # CORS and CSRF settings
 CORS_ALLOWED_ORIGINS = [
-    'http://localhost:5173',  # Vite
-    'http://localhost:3000',  # CRA/Alt
-    'https://tailor-booking-website.onrender.com',
-    'https://tailor-booking-website-frontend.onrender.com',
+    'http://localhost:5173',  # Frontend (Vite development)
+    'http://127.0.0.1:5173',  # Frontend (Alternative localhost - some systems need this)
+    'https://tailor-booking-website.onrender.com',  # Production backend
+    'https://tailor-booking-website-frontend.onrender.com',  # Production frontend
 ]
 
+# Additional CORS settings for development
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = DEBUG  # Only allow all origins in debug mode
+
 CSRF_TRUSTED_ORIGINS = [
-    'https://tailor-booking-website.onrender.com',
-    'http://tailor-booking-website.onrender.com'
+    'http://localhost:5173',  # Frontend
+    'http://127.0.0.1:5173',  # Frontend (Alternative localhost)
+    'https://tailor-booking-website.onrender.com',  # Production
+    'http://tailor-booking-website.onrender.com'   # Production (HTTP fallback)
 ]   
+
+# Stripe Configuration
+STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY')
+STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY')
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:5173')

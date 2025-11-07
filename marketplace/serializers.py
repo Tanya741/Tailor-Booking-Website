@@ -1,8 +1,24 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import TailorProfile, Specialization, Service, Booking, Review
+from django.utils import timezone
+from .models import TailorProfile, Specialization, Service, Booking, Review, ServiceImage, ReviewImage
 
 User = get_user_model()
+
+
+# Image Serializers
+class ServiceImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ServiceImage
+        fields = ['id', 'image', 'alt_text', 'order', 'uploaded_at']
+        read_only_fields = ['id', 'uploaded_at']
+
+
+class ReviewImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ReviewImage
+        fields = ['id', 'image', 'alt_text', 'uploaded_at']
+        read_only_fields = ['id', 'uploaded_at']
 
 
 class SpecializationSerializer(serializers.ModelSerializer):
@@ -24,7 +40,7 @@ class TailorProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = TailorProfile
         fields = [
-            'user_id', 'username', 'bio', 'years_experience', 'avg_rating', 'total_reviews', 'specializations', 'distance_km', 'matched_service'
+            'user_id', 'username', 'bio', 'years_experience', 'avg_rating', 'total_reviews', 'specializations', 'distance_km', 'matched_service', 'profile_image'
         ]
         read_only_fields = ['avg_rating', 'total_reviews']
 
@@ -58,7 +74,7 @@ class TailorProfileSerializer(serializers.ModelSerializer):
             'id': svc.id,
             'name': svc.name,
             'price': str(svc.price),
-            'duration_minutes': svc.duration_minutes,
+            'duration_days': svc.duration_days,
             'is_active': svc.is_active,
         }
 
@@ -71,7 +87,7 @@ class TailorProfileUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = TailorProfile
-        fields = ['bio', 'years_experience', 'specializations']
+        fields = ['bio', 'years_experience', 'specializations', 'profile_image']
 
     def update(self, instance, validated_data):
         spec_names = validated_data.pop('specializations', None)
@@ -94,17 +110,19 @@ class TailorProfileUpdateSerializer(serializers.ModelSerializer):
 
 class ServiceSerializer(serializers.ModelSerializer):
     tailor_username = serializers.CharField(source='tailor.user.username', read_only=True)
+    images = ServiceImageSerializer(many=True, read_only=True)
 
     class Meta:
         model = Service
-        fields = ['id', 'tailor_username', 'name', 'description', 'price', 'duration_minutes', 'is_active']
+        fields = ['id', 'tailor_username', 'name', 'description', 'price', 'duration_days', 'is_active', 'images']
         read_only_fields = ['id', 'tailor_username']
 
 
 class ServiceCreateUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Service
-        fields = ['name', 'description', 'price', 'duration_minutes', 'is_active']
+        fields = ['id', 'name', 'description', 'price', 'duration_days', 'is_active']
+        read_only_fields = ['id']
 
     def validate_name(self, value):
         tailor_profile = self.context['request'].user.tailor_profile
@@ -117,20 +135,25 @@ class BookingSerializer(serializers.ModelSerializer):
     customer_username = serializers.CharField(source='customer.username', read_only=True)
     tailor_username = serializers.CharField(source='tailor.username', read_only=True)
     service_name = serializers.CharField(source='service.name', read_only=True)
+    has_review = serializers.SerializerMethodField()
 
     class Meta:
         model = Booking
         fields = [
             'id', 'customer_username', 'tailor_username', 'service', 'service_name',
-            'status', 'scheduled_time', 'price_snapshot', 'payment_status', 'created_at'
+            'status', 'pickup_date', 'delivery_date', 'price_snapshot', 'payment_status', 
+            'has_review', 'created_at'
         ]
-        read_only_fields = ['id', 'customer_username', 'tailor_username', 'service_name', 'status', 'price_snapshot', 'payment_status', 'created_at']
+        read_only_fields = ['id', 'customer_username', 'tailor_username', 'service_name', 'status', 'price_snapshot', 'payment_status', 'has_review', 'created_at']
+    
+    def get_has_review(self, obj):
+        return hasattr(obj, 'review')
 
 
 class BookingCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Booking
-        fields = ['service', 'scheduled_time']
+        fields = ['service', 'pickup_date']
 
     def validate(self, attrs):
         service = attrs['service']
@@ -139,6 +162,13 @@ class BookingCreateSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         if user.role != 'customer':
             raise serializers.ValidationError('Only customers can create bookings.')
+        
+        # Calculate delivery date based on service duration
+        pickup_date = attrs['pickup_date']
+        if pickup_date < timezone.now():
+            raise serializers.ValidationError('Pickup date cannot be in the past.')
+        
+        attrs['delivery_date'] = pickup_date + timezone.timedelta(days=service.duration_days)
         return attrs
 
     def create(self, validated_data):
@@ -148,7 +178,8 @@ class BookingCreateSerializer(serializers.ModelSerializer):
             customer=request.user,
             tailor=service.tailor.user,
             service=service,
-            scheduled_time=validated_data['scheduled_time'],
+            pickup_date=validated_data['pickup_date'],
+            delivery_date=validated_data['delivery_date'],
             price_snapshot=service.price,
         )
         return booking
@@ -157,17 +188,21 @@ class BookingCreateSerializer(serializers.ModelSerializer):
 class ReviewSerializer(serializers.ModelSerializer):
     customer_username = serializers.CharField(source='customer.username', read_only=True)
     tailor_username = serializers.CharField(source='tailor.username', read_only=True)
+    service_name = serializers.CharField(source='booking.service.name', read_only=True)
+    service_price = serializers.DecimalField(source='booking.service.price', max_digits=8, decimal_places=2, read_only=True)
+    images = ReviewImageSerializer(many=True, read_only=True)
 
     class Meta:
         model = Review
-        fields = ['id', 'booking', 'customer_username', 'tailor_username', 'rating', 'comment', 'created_at']
-        read_only_fields = ['id', 'customer_username', 'tailor_username', 'created_at']
+        fields = ['id', 'booking', 'customer_username', 'tailor_username', 'service_name', 'service_price', 'rating', 'comment', 'images', 'created_at']
+        read_only_fields = ['id', 'customer_username', 'tailor_username', 'service_name', 'service_price', 'created_at']
 
 
 class ReviewCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Review
-        fields = ['booking', 'rating', 'comment']
+        fields = ['id', 'booking', 'rating', 'comment']
+        read_only_fields = ['id']
 
     def validate(self, attrs):
         booking = attrs['booking']
@@ -195,3 +230,6 @@ Note: Duplicate definitions were removed to avoid confusion. We keep the
 original TailorProfileSerializer/TailorProfileUpdateSerializer pair that the
 views expect (Update serializer uses field name 'specializations').
 """
+
+
+

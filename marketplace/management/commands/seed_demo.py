@@ -137,13 +137,14 @@ class Command(BaseCommand):
                 name = spec.name
                 if name in existing_names:
                     continue
-                base_price = Decimal('499.00')
+                # Use whole number prices without decimals
+                base_price = random.choice([500, 425, 348, 239, 400, 250, 200, 300])
                 svc = Service.objects.create(
                     tailor=profile,
                     name=name,
                     description=f"{name} by {tailor_user.username}",
-                    price=base_price + Decimal(random.randint(-100, 200)),
-                    duration_minutes=random.choice([45, 60, 90, 120]),
+                    price=Decimal(str(base_price)),
+                    duration_days=random.choice([1, 2, 3, 5]),
                 )
                 all_services.append(svc)
         self.stdout.write(f'Services created or ensured: {len(all_services)}')
@@ -154,13 +155,16 @@ class Command(BaseCommand):
         for _ in range(bookings_target):
             service = random.choice(possible_services)
             customer = random.choice(customer_users)
-            # Schedule in future hours
-            scheduled_time = timezone.now() + timezone.timedelta(hours=random.randint(1, 240))
+            # Schedule pickup date in future hours
+            pickup_date = timezone.now() + timezone.timedelta(hours=random.randint(1, 240))
+            # Calculate delivery date based on service duration
+            delivery_date = pickup_date + timezone.timedelta(days=service.duration_days)
             booking = Booking.objects.create(
                 customer=customer,
                 tailor=service.tailor.user,
                 service=service,
-                scheduled_time=scheduled_time,
+                pickup_date=pickup_date,
+                delivery_date=delivery_date,
                 price_snapshot=service.price,
             )
             # Randomly accept/reject some

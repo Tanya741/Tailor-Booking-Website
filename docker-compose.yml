@@ -18,12 +18,15 @@ services:
   web:
     build: .
     environment:
-      - DEBUG=False
-      - SECRET_KEY=your-production-secret-key
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/tailor_it
-      - ALLOWED_HOSTS=localhost,127.0.0.1
-      - CORS_ALLOWED_ORIGINS=http://localhost:8000
-      - CSRF_TRUSTED_ORIGINS=http://localhost:8000
+      - DEBUG=${DEBUG:-False}
+      - SECRET_KEY=${SECRET_KEY}
+      - DATABASE_URL=${DATABASE_URL}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
+      - CSRF_TRUSTED_ORIGINS=${CSRF_TRUSTED_ORIGINS}
+      - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - FRONTEND_URL=${FRONTEND_URL}
       - DB_HOST=db
       - DB_PORT=5432
     ports:
@@ -39,12 +42,16 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile.prod
+      dockerfile: Dockerfile
+      target: ${FRONTEND_TARGET:-development}
+      args:
+        - NODE_ENV=${NODE_ENV:-development}
+        - VITE_API_BASE=${VITE_API_BASE:-http://localhost:8000}
     ports:
-      - "3000:80"
+      - "${FRONTEND_PORT:-5173}:${FRONTEND_INTERNAL_PORT:-5173}"
     environment:
-      - NODE_ENV=production
-      - VITE_API_BASE=https://tailor-booking-website.onrender.com
+      - NODE_ENV=${NODE_ENV:-development}
+      - VITE_API_BASE=${VITE_API_BASE:-http://localhost:8000}
     depends_on:
       - web
 
