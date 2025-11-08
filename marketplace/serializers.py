@@ -95,10 +95,25 @@ class TailorProfileSerializer(serializers.ModelSerializer):
     
     def to_representation(self, instance):
         """Override to handle Cloudinary URLs properly"""
-        data = super().to_representation(instance)
+        try:
+            data = super().to_representation(instance)
+        except Exception as e:
+            # If there's an error with the parent serialization, return a basic representation
+            data = {
+                'user_id': getattr(instance.user, 'id', None) if hasattr(instance, 'user') and instance.user else None,
+                'username': getattr(instance.user, 'username', None) if hasattr(instance, 'user') and instance.user else None,
+                'bio': getattr(instance, 'bio', ''),
+                'years_experience': getattr(instance, 'years_experience', 0),
+                'avg_rating': getattr(instance, 'avg_rating', 0.0),
+                'total_reviews': getattr(instance, 'total_reviews', 0),
+                'specializations': [],
+                'distance_km': None,
+                'matched_service': None,
+                'profile_image': None,
+            }
         
         # Handle profile_image URL
-        if instance.profile_image:
+        if hasattr(instance, 'profile_image') and instance.profile_image:
             try:
                 url = instance.profile_image.url
                 # If it's already an absolute URL (Cloudinary), use as-is
@@ -106,7 +121,7 @@ class TailorProfileSerializer(serializers.ModelSerializer):
                     data['profile_image'] = url
                 else:
                     # If it's a relative URL (local), build the absolute URL
-                    request = self.context.get('request')
+                    request = self.context.get('request') if self.context else None
                     if request:
                         data['profile_image'] = request.build_absolute_uri(url)
                     else:
