@@ -8,16 +8,57 @@ User = get_user_model()
 
 # Image Serializers
 class ServiceImageSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField(read_only=True)
+    
     class Meta:
         model = ServiceImage
         fields = ['id', 'image', 'alt_text', 'order', 'uploaded_at']
         read_only_fields = ['id', 'uploaded_at']
+    
+    def get_image(self, obj):
+        """Return the correct URL for service image (Cloudinary or local)"""
+        if not obj.image:
+            return None
+        
+        try:
+            url = obj.image.url
+            # If it's already an absolute URL (Cloudinary), return as-is
+            if url.startswith('http'):
+                return url
+            # If it's a relative URL (local), build the absolute URL
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(url)
+            return url
+        except Exception:
+            return None
 
 
 class ReviewImageSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField(read_only=True)
+    
     class Meta:
         model = ReviewImage
         fields = ['id', 'image', 'alt_text', 'uploaded_at']
+        read_only_fields = ['id', 'uploaded_at']
+    
+    def get_image(self, obj):
+        """Return the correct URL for review image (Cloudinary or local)"""
+        if not obj.image:
+            return None
+        
+        try:
+            url = obj.image.url
+            # If it's already an absolute URL (Cloudinary), return as-is
+            if url.startswith('http'):
+                return url
+            # If it's a relative URL (local), build the absolute URL
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(url)
+            return url
+        except Exception:
+            return None
         read_only_fields = ['id', 'uploaded_at']
 
 
@@ -36,6 +77,8 @@ class TailorProfileSerializer(serializers.ModelSerializer):
     distance_km = serializers.FloatField(read_only=True, required=False)
     # Service that matches the requested specialization (if provided in context)
     matched_service = serializers.SerializerMethodField(read_only=True)
+    # Custom profile_image field to handle Cloudinary URLs properly
+    profile_image = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = TailorProfile
@@ -77,6 +120,26 @@ class TailorProfileSerializer(serializers.ModelSerializer):
             'duration_days': svc.duration_days,
             'is_active': svc.is_active,
         }
+
+    def get_profile_image(self, obj: TailorProfile):
+        """Return the correct URL for profile image (Cloudinary or local)"""
+        if not obj.profile_image:
+            return None
+        
+        # If using Cloudinary, the image.url will be the Cloudinary URL
+        # If using local storage, we need to build the full URL
+        try:
+            url = obj.profile_image.url
+            # If it's already an absolute URL (Cloudinary), return as-is
+            if url.startswith('http'):
+                return url
+            # If it's a relative URL (local), build the absolute URL
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(url)
+            return url
+        except Exception:
+            return None
 
 
 class TailorProfileUpdateSerializer(serializers.ModelSerializer):
