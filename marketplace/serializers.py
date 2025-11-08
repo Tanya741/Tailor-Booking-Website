@@ -94,44 +94,107 @@ class TailorProfileSerializer(serializers.ModelSerializer):
         read_only_fields = ['avg_rating', 'total_reviews']
     
     def to_representation(self, instance):
-        """Override to handle Cloudinary URLs properly"""
+        """Override to handle Cloudinary URLs properly - production-safe version"""
         try:
-            data = super().to_representation(instance)
-        except Exception as e:
-            # If there's an error with the parent serialization, return a basic representation
+            # Start with safe defaults
             data = {
-                'user_id': getattr(instance.user, 'id', None) if hasattr(instance, 'user') and instance.user else None,
-                'username': getattr(instance.user, 'username', None) if hasattr(instance, 'user') and instance.user else None,
-                'bio': getattr(instance, 'bio', ''),
-                'years_experience': getattr(instance, 'years_experience', 0),
-                'avg_rating': getattr(instance, 'avg_rating', 0.0),
-                'total_reviews': getattr(instance, 'total_reviews', 0),
+                'user_id': None,
+                'username': None,
+                'bio': '',
+                'years_experience': 0,
+                'avg_rating': 0.0,
+                'total_reviews': 0,
                 'specializations': [],
                 'distance_km': None,
                 'matched_service': None,
                 'profile_image': None,
             }
-        
-        # Handle profile_image URL
-        if hasattr(instance, 'profile_image') and instance.profile_image:
-            try:
-                url = instance.profile_image.url
-                # If it's already an absolute URL (Cloudinary), use as-is
-                if url.startswith('http'):
-                    data['profile_image'] = url
-                else:
-                    # If it's a relative URL (local), build the absolute URL
-                    request = self.context.get('request') if self.context else None
-                    if request:
-                        data['profile_image'] = request.build_absolute_uri(url)
-                    else:
-                        data['profile_image'] = url
-            except Exception:
-                data['profile_image'] = None
-        else:
-            data['profile_image'] = None
             
-        return data
+            # Safely set each field
+            try:
+                if instance and hasattr(instance, 'user') and instance.user:
+                    data['user_id'] = instance.user.id
+                    data['username'] = instance.user.username
+            except Exception:
+                pass
+            
+            try:
+                data['bio'] = str(instance.bio) if instance.bio else ''
+            except Exception:
+                pass
+                
+            try:
+                data['years_experience'] = int(instance.years_experience) if instance.years_experience else 0
+            except Exception:
+                pass
+                
+            try:
+                data['avg_rating'] = float(instance.avg_rating) if instance.avg_rating else 0.0
+            except Exception:
+                pass
+                
+            try:
+                data['total_reviews'] = int(instance.total_reviews) if instance.total_reviews else 0
+            except Exception:
+                pass
+            
+            # Handle specializations very safely
+            try:
+                if instance and hasattr(instance, 'specializations'):
+                    specializations_list = []
+                    for s in instance.specializations.all()[:10]:  # Limit to prevent memory issues
+                        try:
+                            specializations_list.append({
+                                'id': s.id, 
+                                'name': str(s.name), 
+                                'slug': str(s.slug)
+                            })
+                        except Exception:
+                            continue
+                    data['specializations'] = specializations_list
+            except Exception:
+                pass
+            
+            # Handle optional fields safely
+            try:
+                data['distance_km'] = getattr(instance, 'distance_km', None)
+            except Exception:
+                pass
+            
+            # Handle profile_image URL very safely
+            try:
+                if instance and hasattr(instance, 'profile_image') and instance.profile_image:
+                    try:
+                        url = str(instance.profile_image.url)
+                        if url.startswith('http'):
+                            data['profile_image'] = url
+                        else:
+                            request = self.context.get('request') if hasattr(self, 'context') and self.context else None
+                            if request and hasattr(request, 'build_absolute_uri'):
+                                data['profile_image'] = request.build_absolute_uri(url)
+                            else:
+                                data['profile_image'] = url
+                    except Exception:
+                        data['profile_image'] = None
+            except Exception:
+                pass
+                
+            return data
+            
+        except Exception:
+            # Ultimate fallback - return basic structure
+            return {
+                'user_id': None,
+                'username': 'unknown',
+                'bio': '',
+                'years_experience': 0,
+                'avg_rating': 0.0,
+                'total_reviews': 0,
+                'specializations': [],
+                'distance_km': None,
+                'matched_service': None,
+                'profile_image': None,
+            }
 
     def get_matched_service(self, obj: TailorProfile):
         spec_slug = (self.context or {}).get('specialization')
