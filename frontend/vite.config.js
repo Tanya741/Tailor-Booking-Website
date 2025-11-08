@@ -15,6 +15,16 @@ export default defineConfig(({ mode }) => {
     base: '/',
     define: {
       'import.meta.env.VITE_API_BASE': JSON.stringify(apiBase)
+    },
+    build: {
+      rollupOptions: {
+        // Ensure _redirects file is copied to build output
+        external: [],
+      }
+    },
+    // Ensure SPA routing works in development
+    server: {
+      historyApiFallback: true
     }
   };
 });
