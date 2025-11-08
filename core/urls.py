@@ -93,6 +93,49 @@ def debug_users(request):
         }
     })
 
+def create_superuser_now(request):
+    """Manual endpoint to create superuser"""
+    from django.contrib.auth import get_user_model
+    
+    User = get_user_model()
+    
+    username = os.environ.get('SUPERUSER_USERNAME', 'admin')
+    email = os.environ.get('SUPERUSER_EMAIL', 'admin@example.com')
+    password = os.environ.get('SUPERUSER_PASSWORD')
+    
+    if not password:
+        return JsonResponse({
+            'success': False,
+            'error': 'SUPERUSER_PASSWORD environment variable is required'
+        })
+    
+    if User.objects.filter(username=username).exists():
+        return JsonResponse({
+            'success': False,
+            'error': f'Superuser with username "{username}" already exists'
+        })
+    
+    try:
+        user = User.objects.create_superuser(
+            username=username,
+            email=email,
+            password=password,
+            role='admin'
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Superuser "{username}" created successfully',
+            'user_id': user.id,
+            'is_superuser': user.is_superuser,
+            'is_staff': user.is_staff
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Error creating superuser: {str(e)}'
+        })
+
 router = SimpleRouter()
 router.register(r'tailors', TailorSearchViewSet, basename='tailor-search')
 
@@ -105,6 +148,7 @@ urlpatterns = [
     # Debug endpoints - REMOVE IN PRODUCTION
     path('api/debug-env/', debug_env, name='debug-env'),
     path('api/debug-users/', debug_users, name='debug-users'),
+    path('api/create-superuser/', create_superuser_now, name='create-superuser'),
     path('', FrontendAppView.as_view(), name='home'),
 ]
 
