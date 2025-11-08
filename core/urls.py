@@ -25,15 +25,39 @@ from django.http import JsonResponse
 import os
 
 def debug_env(request):
-    """Debug endpoint to check environment variables"""
+    """Debug endpoint to check environment variables and test file storage"""
+    from django.core.files.storage import default_storage
+    
+    # Test file storage type
+    storage_class = default_storage.__class__
+    storage_name = f"{storage_class.__module__}.{storage_class.__name__}"
+    
+    # Check if we can get a sample TailorProfile with an image
+    sample_image_info = None
+    try:
+        from marketplace.models import TailorProfile
+        profile_with_image = TailorProfile.objects.exclude(profile_image__isnull=True).exclude(profile_image__exact='').first()
+        if profile_with_image and profile_with_image.profile_image:
+            sample_image_info = {
+                'has_image': True,
+                'image_name': profile_with_image.profile_image.name,
+                'image_url': profile_with_image.profile_image.url,
+                'url_starts_with_http': profile_with_image.profile_image.url.startswith('http'),
+                'url_contains_cloudinary': 'cloudinary' in profile_with_image.profile_image.url.lower(),
+            }
+    except Exception as e:
+        sample_image_info = {'error': str(e)}
+    
     return JsonResponse({
         'USE_CLOUDINARY': getattr(settings, 'USE_CLOUDINARY', None),
         'CLOUDINARY_CLOUD_NAME_SET': bool(os.environ.get('CLOUDINARY_CLOUD_NAME')),
         'CLOUDINARY_API_KEY_SET': bool(os.environ.get('CLOUDINARY_API_KEY')), 
         'CLOUDINARY_API_SECRET_SET': bool(os.environ.get('CLOUDINARY_API_SECRET')),
         'DEFAULT_FILE_STORAGE': getattr(settings, 'DEFAULT_FILE_STORAGE', 'Not set'),
+        'ACTUAL_STORAGE_CLASS': storage_name,
         'DEBUG': settings.DEBUG,
         'MEDIA_URL': settings.MEDIA_URL,
+        'SAMPLE_IMAGE_INFO': sample_image_info,
     })
 
 router = SimpleRouter()
