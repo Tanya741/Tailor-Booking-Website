@@ -61,6 +61,9 @@ ALLOWED_HOSTS=localhost,127.0.0.1
 CORS_ALLOWED_ORIGINS=http://localhost:5173,http://localhost:8000
 CSRF_TRUSTED_ORIGINS=http://localhost:5173,http://localhost:8000
 
+# Note: Images are stored locally in development (/media/ folder)
+# Production uses Cloudinary (configured in Render environment variables)
+
 # Stripe Configuration (Get from https://stripe.com/docs/keys)
 STRIPE_PUBLISHABLE_KEY=pk_test_your_stripe_publishable_key
 STRIPE_SECRET_KEY=sk_test_your_stripe_secret_key

@@ -40,6 +40,8 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt',
+    'cloudinary_storage',
+    'cloudinary',
     # Local apps
     'users',
     'marketplace.apps.MarketplaceConfig',
@@ -132,12 +134,30 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-# Media files (uploads)
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+# Cloudinary Configuration
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
 
-# Ensure media directory exists
-os.makedirs(MEDIA_ROOT, exist_ok=True)
+cloudinary.config(
+    cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME'),
+    api_key=os.environ.get('CLOUDINARY_API_KEY'),
+    api_secret=os.environ.get('CLOUDINARY_API_SECRET'),
+)
+
+# Media files (uploads) - Use Cloudinary in production, local in development
+USE_CLOUDINARY = os.environ.get('USE_CLOUDINARY', 'False').lower() in ('true', '1', 'yes')
+
+if USE_CLOUDINARY:
+    # Production: Use Cloudinary
+    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+    MEDIA_URL = '/media/'  # This will be overridden by Cloudinary URLs
+else:
+    # Development: Use local storage
+    MEDIA_URL = '/media/'
+    MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+    # Ensure media directory exists
+    os.makedirs(MEDIA_ROOT, exist_ok=True)
 
 # Image upload settings
 MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB

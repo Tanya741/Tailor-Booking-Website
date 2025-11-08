@@ -10,3 +10,5 @@
     gunicorn==21.2.0
     psycopg[binary]==3.2.10
     stripe==8.2.0
+    cloudinary==1.36.0
+    django-cloudinary-storage==0.3.0
