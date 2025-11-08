@@ -8,58 +8,67 @@ User = get_user_model()
 
 # Image Serializers
 class ServiceImageSerializer(serializers.ModelSerializer):
-    image = serializers.SerializerMethodField(read_only=True)
-    
     class Meta:
         model = ServiceImage
         fields = ['id', 'image', 'alt_text', 'order', 'uploaded_at']
         read_only_fields = ['id', 'uploaded_at']
     
-    def get_image(self, obj):
-        """Return the correct URL for service image (Cloudinary or local)"""
-        if not obj.image:
-            return None
+    def to_representation(self, instance):
+        """Override to handle Cloudinary URLs properly"""
+        data = super().to_representation(instance)
         
-        try:
-            url = obj.image.url
-            # If it's already an absolute URL (Cloudinary), return as-is
-            if url.startswith('http'):
-                return url
-            # If it's a relative URL (local), build the absolute URL
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(url)
-            return url
-        except Exception:
-            return None
+        # Handle image URL
+        if instance.image:
+            try:
+                url = instance.image.url
+                # If it's already an absolute URL (Cloudinary), use as-is
+                if url.startswith('http'):
+                    data['image'] = url
+                else:
+                    # If it's a relative URL (local), build the absolute URL
+                    request = self.context.get('request')
+                    if request:
+                        data['image'] = request.build_absolute_uri(url)
+                    else:
+                        data['image'] = url
+            except Exception:
+                data['image'] = None
+        else:
+            data['image'] = None
+            
+        return data
 
 
 class ReviewImageSerializer(serializers.ModelSerializer):
-    image = serializers.SerializerMethodField(read_only=True)
-    
     class Meta:
         model = ReviewImage
         fields = ['id', 'image', 'alt_text', 'uploaded_at']
         read_only_fields = ['id', 'uploaded_at']
     
-    def get_image(self, obj):
-        """Return the correct URL for review image (Cloudinary or local)"""
-        if not obj.image:
-            return None
+    def to_representation(self, instance):
+        """Override to handle Cloudinary URLs properly"""
+        data = super().to_representation(instance)
         
-        try:
-            url = obj.image.url
-            # If it's already an absolute URL (Cloudinary), return as-is
-            if url.startswith('http'):
-                return url
-            # If it's a relative URL (local), build the absolute URL
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(url)
-            return url
-        except Exception:
-            return None
-        read_only_fields = ['id', 'uploaded_at']
+        # Handle image URL
+        if instance.image:
+            try:
+                url = instance.image.url
+                # If it's already an absolute URL (Cloudinary), use as-is
+                if url.startswith('http'):
+                    data['image'] = url
+                else:
+                    # If it's a relative URL (local), build the absolute URL
+                    request = self.context.get('request')
+                    if request:
+                        data['image'] = request.build_absolute_uri(url)
+                    else:
+                        data['image'] = url
+            except Exception:
+                data['image'] = None
+        else:
+            data['image'] = None
+            
+        return data
 
 
 class SpecializationSerializer(serializers.ModelSerializer):
