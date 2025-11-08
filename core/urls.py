@@ -60,6 +60,39 @@ def debug_env(request):
         'SAMPLE_IMAGE_INFO': sample_image_info,
     })
 
+def debug_users(request):
+    """Debug endpoint to check users in database"""
+    from django.contrib.auth import get_user_model
+    
+    User = get_user_model()
+    
+    # Get all users
+    users = User.objects.all()
+    user_info = []
+    
+    for user in users:
+        user_info.append({
+            'username': user.username,
+            'email': user.email,
+            'is_superuser': user.is_superuser,
+            'is_staff': user.is_staff,
+            'is_active': user.is_active,
+            'role': getattr(user, 'role', 'No role field'),
+            'date_joined': user.date_joined.isoformat() if user.date_joined else None,
+        })
+    
+    return JsonResponse({
+        'total_users': users.count(),
+        'superuser_count': User.objects.filter(is_superuser=True).count(),
+        'staff_count': User.objects.filter(is_staff=True).count(),
+        'users': user_info,
+        'env_vars_set': {
+            'SUPERUSER_USERNAME': bool(os.environ.get('SUPERUSER_USERNAME')),
+            'SUPERUSER_EMAIL': bool(os.environ.get('SUPERUSER_EMAIL')),
+            'SUPERUSER_PASSWORD': bool(os.environ.get('SUPERUSER_PASSWORD')),
+        }
+    })
+
 router = SimpleRouter()
 router.register(r'tailors', TailorSearchViewSet, basename='tailor-search')
 
@@ -69,8 +102,9 @@ urlpatterns = [
     path('api/marketplace/', include('marketplace.urls')),
     # Frontend expects /api/tailors/
     path('api/', include(router.urls)),
-    # Debug endpoint - REMOVE IN PRODUCTION
+    # Debug endpoints - REMOVE IN PRODUCTION
     path('api/debug-env/', debug_env, name='debug-env'),
+    path('api/debug-users/', debug_users, name='debug-users'),
     path('', FrontendAppView.as_view(), name='home'),
 ]
 
