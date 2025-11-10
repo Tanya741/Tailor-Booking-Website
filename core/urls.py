@@ -20,7 +20,6 @@ from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework.routers import SimpleRouter
 from marketplace.views import TailorSearchViewSet
-from core.views import FrontendAppView
 from django.http import JsonResponse
 import os
 
@@ -149,7 +148,7 @@ urlpatterns = [
     path('api/debug-env/', debug_env, name='debug-env'),
     path('api/debug-users/', debug_users, name='debug-users'),
     path('api/create-superuser/', create_superuser_now, name='create-superuser'),
-    path('', FrontendAppView.as_view(), name='home'),
+    # Note: Frontend is served separately via Render static site, not through Django
 ]
 
 # Serve media files (for both development and production)

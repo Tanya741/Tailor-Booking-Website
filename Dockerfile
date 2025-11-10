@@ -29,11 +29,6 @@ RUN ls -l /app/frontend/dist
 WORKDIR /app
 COPY . /app/
 
-# Copy frontend build output to Django staticfiles
-RUN mkdir -p /app/staticfiles
-RUN cp /app/frontend/dist/index.html /app/staticfiles/
-RUN cp -r /app/frontend/dist/assets /app/staticfiles/
-
 # Create media directory for image uploads
 RUN mkdir -p /app/media
 
